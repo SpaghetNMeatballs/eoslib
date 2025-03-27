@@ -1,6 +1,6 @@
 import csv
 import datetime
-from point_dataclass import Point
+from utils.point_dataclass import Point
 
 
 def load_csv(file_name: str, phase="liquid"):

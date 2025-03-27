@@ -8,6 +8,6 @@ class Point:
         if "volume" in keys:
             self.v = prop_dict["volume"]
         if "z" in keys:
-            self.t = prop_dict["z"]
+            self.z = prop_dict["z"]
         if "density" in keys:
-            self.t = prop_dict["density"]
+            self.rho = prop_dict["density"]

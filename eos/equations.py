@@ -1,9 +1,8 @@
 from thermo.eos import GCEOS
 import numpy as np
-from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
-from csv_experimental_loader import load_csv, write_csv
-from nistlib import get_data_for_ID
+from database.csv_experimental_loader import load_csv, write_csv
+from parsers.nistlib import get_data_for_ID
 
 R = 8.3144621
 
@@ -134,9 +133,9 @@ def plots():
     fig, ax = plt.subplots(2, 3)
     ax = ax.flatten()
 
-    experimental_data_vapor = load_csv("methane_experimental.csv", "vapor")
-    experimental_data_liquid = load_csv("methane_experimental.csv", "liquid")
-    experimental_data_supercrit = load_csv("methane_experimental.csv", "supercritical")
+    experimental_data_vapor = load_csv("../methane_experimental.csv", "vapor")
+    experimental_data_liquid = load_csv("../methane_experimental.csv", "liquid")
+    experimental_data_supercrit = load_csv("../methane_experimental.csv", "supercritical")
 
     # Расчёт отклонений
     phase_dict = {
