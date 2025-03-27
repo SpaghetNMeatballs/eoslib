@@ -1,15 +1,14 @@
-from typing import List
-from typing import Optional
-from sqlalchemy import ForeignKey, String, Float, Integer
+from typing import Optional, Any
+from sqlalchemy import ForeignKey, Float, Integer
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB, insert
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 class Base(DeclarativeBase):
-    pass
+    type_annotation_map = {dict[str, Any]: JSON}
 
 
 class Compound(Base):
@@ -33,7 +32,7 @@ class Point(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     T: Mapped[float] = mapped_column(Float)
     P: Mapped[float] = mapped_column(Float)
-    properties: Mapped[JSONB]
+    properties: Mapped[dict[str, Any]]
     compound_id: Mapped[int] = mapped_column(ForeignKey("compound_table.id"))
 
     def __repr__(self):
