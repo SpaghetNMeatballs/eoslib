@@ -2,7 +2,8 @@ from thermo.eos import GCEOS
 import numpy as np
 from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
-from csv_experimental_loader import load_csv
+from csv_experimental_loader import load_csv, write_csv
+from nistlib import get_data_for_ID
 
 R = 8.3144621
 
@@ -40,6 +41,7 @@ class VanDerWaalsEOS(GCEOS):
         return P / (Z * R * T)
 
 
+# показатель относительно
 class RedlichKwongEOS(GCEOS):
     def __init__(self, Tc, Pc):
         a = 0.42748 * (R**2) * (Tc**2.5) / Pc
@@ -215,4 +217,6 @@ def plots():
 
 # Пример использования:
 if __name__ == "__main__":
-    plots()
+    data = get_data_for_ID(T=140, PLow=1, PHigh=6, PInc=1, ID="C7732185")
+    print(data)
+    write_csv(data, "C7732185")
