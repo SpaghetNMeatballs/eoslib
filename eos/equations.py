@@ -2,7 +2,7 @@ from thermo.eos import GCEOS
 import numpy as np
 import matplotlib.pyplot as plt
 from database.csv_experimental_loader import load_csv, write_csv
-from parsers.nistlib import get_data_for_ID
+from parsers.nistlib import get_isothermal_data_for_ID
 
 R = 8.3144621
 
@@ -216,6 +216,6 @@ def plots():
 
 # Пример использования:
 if __name__ == "__main__":
-    data = get_data_for_ID(T=140, PLow=1, PHigh=6, PInc=1, ID="C7732185")
+    data = get_isothermal_data_for_ID(T=140, PLow=1, PHigh=6, PInc=1, ID="C7732185")
     print(data)
     write_csv(data, "C7732185")

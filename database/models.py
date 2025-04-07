@@ -23,7 +23,7 @@ class Compound(Base):
     def __repr__(self) -> str:
         return (
             f"Compound {self.id}, CAS ID = {self.CasID}, Tcr = {self.Tcr}, Pcr = {self.Pcr}"
-            + (f" name = {self.name}" if self.name else "")
+            + (f", name = {self.name}" if self.name else "")
         )
 
 

@@ -1,18 +1,19 @@
 import requests
 from bs4 import BeautifulSoup
+import warnings
 
 
-def get_data_for_ID(T, PLow, PHigh, PInc, ID):
+def get_isothermal_data_for_ID(T, PLow, PHigh, PInc, ID):
     payload = {
         "T": T,
         "PLow": PLow,
         "PHigh": PHigh,
         "PInc": PInc,
-        "Digits": ID,
-        "ID": ID,
+        "Digits": 5,
+        "ID": 'C'+str(ID),
         "Action": "Load",
         "Type": "IsoTherm",
-        "TUnit": "C",
+        "TUnit": "K",
         "PUnit": "MPa",
         "DUnit": "mol%2Fl",
         "HUnit": "kJ%2Fmol",
@@ -24,7 +25,8 @@ def get_data_for_ID(T, PLow, PHigh, PInc, ID):
     r = requests.get("https://webbook.nist.gov/cgi/fluid.cgi", params=payload)
     soup = BeautifulSoup(r.content, "html.parser")
     table = soup.find("table")
-    if len(table) == 0:
+    if table is None:
+        warnings.warn("Error while parsing: possibly range error")
         return None
     tr = table.find_all("tr")
     if len(tr) == 0:
@@ -32,8 +34,9 @@ def get_data_for_ID(T, PLow, PHigh, PInc, ID):
     title_row = []
     result = {}
     for th in tr[0].find_all("th"):
-        title_row.append(th.text)
-        result[th.text] = []
+        title=th.text.split('(')[0].strip()
+        title_row.append(title)
+        result[title] = []
     for tr_current in tr[1:]:
         counter = 0
         for td in tr_current.find_all("td"):
@@ -45,7 +48,7 @@ def get_data_for_ID(T, PLow, PHigh, PInc, ID):
 
 def get_critical_values_for_ID(ID):
     payload = {
-        "ID": "C"+str(ID),
+        "ID": "C" + str(ID),
         "Units": "SI",
         "Mask": "4\#Thermo-Phase",
     }
@@ -71,6 +74,7 @@ def get_critical_values_for_ID(ID):
 
 if __name__ == "__main__":
     ids_to_fill = [7732185, 630080, 124389, 7727379, 7446095, 74828]
-    print(get_critical_values_for_ID(ids_to_fill[0]))
+    get_isothermal_data_for_ID(140, 1, 6, 1, ids_to_fill[1])
+    # print(get_critical_values_for_ID(ids_to_fill[0]))
     # for i in ids_to_fill:
-    #    print(f"results for {i}: {get_critical_values_for_ID(i)}")
+    # print(f"results for {i}: {get_critical_values_for_ID(i)}")
