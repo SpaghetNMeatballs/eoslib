@@ -69,6 +69,35 @@ def get_critical_values_for_ID(ID):
         if td_list[0].text.strip() == "Tc" and "Tc" not in result.keys():
             result["Tc"] = float(td_list[1].text.strip().split("±")[0])
 
+    payload = {
+        "T": result["Tc"],
+        "PLow": result["Pc"] ,
+        "PHigh": result["Pc"] ,
+        "PInc": 1,
+        "Digits": 5,
+        "ID": 'C'+str(ID),
+        "Action": "Load",
+        "Type": "IsoTherm",
+        "TUnit": "K",
+        "PUnit": "MPa",
+        "DUnit": "mol%2Fl",
+        "HUnit": "kJ%2Fmol",
+        "WUnit": "m%2Fs",
+        "VisUnit": "uPa*s",
+        "STUnit": "N%2Fm",
+        "RefState": "DEF",
+    }
+    r = requests.get("https://webbook.nist.gov/cgi/fluid.cgi", params=payload)
+    soup = BeautifulSoup(r.content, "html.parser")
+    final_properties = soup.find("table", attrs={"aria-labelledby": "AdditionalFluidProperties"})
+    for row in final_properties.find_all("tr"):
+        if row.find("th").text.strip() == "Critical temperature (Tc)":
+            result["Tc"] = float(row.find("td").text.strip().split()[0])
+        elif row.find("th").text.strip() == "Critical pressure (Pc)":
+            result["Pc"] = float(row.find("td").text.strip().split()[0])
+        elif row.find("th").text.strip() == "Acentric factor":
+            result["omega"] = float(row.find("td").text.strip())
+
     return result
 
 

@@ -1,10 +1,10 @@
-from .db_interface import session
+from database.db_interface import session
 from sqlalchemy.sql.expression import select, delete
-from .models import Compound, Point
+from database.models import Compound, Point
 
 
-def create_compound(name: str, tcr: float, pcr: float, casid: int):
-    new_compound = Compound(name=name, Tcr=tcr, Pcr=pcr, CasID=casid)
+def create_compound(name: str, tcr: float, pcr: float, casid: int, acentric: float):
+    new_compound = Compound(name=name, Tcr=tcr, Pcr=pcr, CasID=casid, accentric=acentric)
     session.add(new_compound)
     session.commit()
     return new_compound
@@ -12,6 +12,9 @@ def create_compound(name: str, tcr: float, pcr: float, casid: int):
 
 def create_point(t: float, p: float, properties: dict, casid: int):
     compound = get_compound_by_casid(casid)
+    prevpoint = get_point_by_params(casid=casid, t=t, p=p)
+    if prevpoint:
+        return prevpoint[0]
     new_point = Point(T=t, P=p, properties=properties, compound_id=compound.id)
     session.add(new_point)
     session.commit()
@@ -30,9 +33,7 @@ def get_point_by_params(casid: int, t: float, p: float):
     if not compound:
         return None
     point = session.execute(
-        select(Point).where(
-            Point.T == t and Point.P == p and Point.compound_id == compound.id
-        )
+        select(Point).where(Point.T == t).where(Point.P == p).where(Point.compound_id == compound.id)
     ).all()
     if point:
         return point[0]
@@ -72,6 +73,8 @@ def remove_point_by_params(casid: int, t: float, p: float):
 
 def remove_points_by_casid(casid: int):
     compound = get_compound_by_casid(casid)
+    if not compound:
+        return False
     session.execute(delete(Point).where(Point.compound_id == compound.id))
     session.commit()
     return True

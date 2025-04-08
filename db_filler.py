@@ -1,4 +1,5 @@
 from database.crud import create_compound, get_compound_by_casid, create_point
+from database.models import Point
 from parsers.nistlib import get_critical_values_for_ID, get_isothermal_data_for_ID
 import warnings
 
@@ -12,13 +13,17 @@ def add_by_id(casid: int):
     if "Tc" not in data.keys() or "Pc" not in data.keys():
         raise Exception("Not enough critical properties present")
     return create_compound(
-        name=data["name"], tcr=data["Tc"], pcr=data["Pc"], casid=casid
+        name=data["name"],
+        tcr=data["Tc"],
+        pcr=data["Pc"],
+        acentric=data["omega"],
+        casid=casid,
     )
 
 
 def add_isothermal_points(
     casid: int, t: float, plow: float, phigh: float, pstep: float
-):
+) -> list[Point]:
     compound = add_by_id(casid)
     data = get_isothermal_data_for_ID(T=t, PLow=plow, PHigh=phigh, PInc=pstep, ID=casid)
     result = []
@@ -26,14 +31,14 @@ def add_isothermal_points(
         props = {}
         for j in data.keys():
             if j == "Temperature":
-                t = data[j][i]
+                t_point = data[j][i]
             elif j == "Pressure":
-                p = data[j][i]
+                p_point = data[j][i]
             else:
                 props[j] = data[j][i]
-        result.append(create_point(t=t, p=p, properties=props, casid=compound.CasID))
+        result.append(create_point(t=t_point, p=p_point, properties=props, casid=compound.CasID))
     return result
 
 
 if __name__ == "__main__":
-    print(add_isothermal_points(630080, 140, 1, 6, 1))
+    print(add_isothermal_points(casid=124389, t=300, plow=5, phigh=8, pstep=1))

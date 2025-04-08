@@ -4,8 +4,6 @@ from sqlalchemy.types import JSON
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.dialects.postgresql import JSONB
-
 
 class Base(DeclarativeBase):
     type_annotation_map = {dict[str, Any]: JSON}
@@ -18,11 +16,12 @@ class Compound(Base):
     name: Mapped[Optional[str]]
     Tcr: Mapped[float] = mapped_column(Float)
     Pcr: Mapped[float] = mapped_column(Float)
+    accentric: Mapped[float] = mapped_column(Float)
     CasID: Mapped[int] = mapped_column(Integer, unique=True)
 
     def __repr__(self) -> str:
         return (
-            f"Compound {self.id}, CAS ID = {self.CasID}, Tcr = {self.Tcr}, Pcr = {self.Pcr}"
+            f"Compound {self.id}, CAS ID = {self.CasID}, Tcr = {self.Tcr}, Pcr = {self.Pcr}, acentric factor = {self.accentric}"
             + (f", name = {self.name}" if self.name else "")
         )
 
