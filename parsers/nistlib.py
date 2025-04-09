@@ -103,7 +103,8 @@ def get_critical_values_for_ID(ID):
 
 if __name__ == "__main__":
     ids_to_fill = [7732185, 630080, 124389, 7727379, 7446095, 74828]
-    get_isothermal_data_for_ID(140, 1, 6, 1, ids_to_fill[1])
+    # get_isothermal_data_for_ID(140, 1, 6, 1, ids_to_fill[1])
+    print(get_critical_values_for_ID(124389))
     # print(get_critical_values_for_ID(ids_to_fill[0]))
     # for i in ids_to_fill:
     # print(f"results for {i}: {get_critical_values_for_ID(i)}")
