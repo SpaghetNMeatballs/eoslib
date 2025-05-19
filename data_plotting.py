@@ -1,13 +1,23 @@
+import csv
+import datetime
+from enum import Enum
 import matplotlib.pyplot as plt
 from fluids.constants import point
-
-from database.models import Compound
-from db_filler import add_by_id, add_isothermal_points, add_isobaric_points
-from thermo.eos import PR, RK, VDW, GCEOS, SRK
-from numpy import linspace
-
-
+from numpy import linspace, array
 from prettytable import PrettyTable
+from thermo.eos import GCEOS, PR, RK, SRK, VDW
+
+from database.crud import get_compound_by_casid
+from database.models import Compound
+from db_filler import add_by_id, add_isobaric_points, add_isothermal_points
+
+
+EOS_STRING = {
+    PR: "PR",
+    RK: "RK",
+    SRK: "SRK",
+    VDW: "VDW",
+}
 
 
 def plot_isothermal_for_casid(
@@ -180,19 +190,53 @@ def process_mape(mape, mode: bool = True, prop: str = "T"):
         print(f"{row[0]:.2f}|{row_mape:.2f}%".replace(".", ","))
 
 
-def write_point_into_csv(point: dict) -> bool:
+def plot_3d_data(points: dict):
+    ax = plt.figure().add_subplot(projection="3d")
+    X = list(points.keys())
+    Y = list(points[X[0]].keys())
+    Z = []
+    for i in X:
+        Z.append([])
+        for j in list(points[i].keys()):
+            Z[-1].append(points[i][j])
+        Z[-1] = array(Z[-1])
+    X, Y, Z = array(X), array(Y), array(Z)
+    ax.plot_surface(X, Y, Z)
+    plt.show()
 
+
+def write_point_into_csv(points: dict, log_name: str = "") -> bool:
+    if log_name == "":
+        now = datetime.datetime.now()
+        log_name = f"unknown-Report-{now:%d-%m-%Y-%H-%M-%S}.csv"
+    keys = list(points.keys())
+    with open(log_name, "w", newline="") as csvfile:
+        spamwriter = csv.writer(csvfile, delimiter=";")
+        top_row = ["\t"] + [round(i, 2) for i in points[keys[0]]]
+        spamwriter.writerow(top_row)
+        for key in keys:
+            spamwriter.writerow(
+                [round(key, 2)] + [str(round(points[key][i], 2))+"%" for i in points[key]]
+            )
     return True
 
 
 if __name__ == "__main__":
     # plot_isothermal_for_casid(124389, 275, 60, 80, 1)
     # True - isothermic, False - isobaric
-    mode = True
-    mape = calculate_deviation_for_casid(
-        casid=124389,
-        point_amount=10,
-        eos=SRK,
-        calc_interval=((0.75, 1), (0.75, 1)),
-    )
-    pass
+    # (t, p)
+    quarters = {"l": ((1, 1.25), (1, 1.25)), "g": ((1, 1.25), (0.75, 1))}
+    casid = 124389
+    compound = get_compound_by_casid(casid)
+    for quarter in quarters:
+        for eos in EOS_STRING:
+            mape = calculate_deviation_for_casid(
+                casid=casid,
+                point_amount=10,
+                eos=eos,
+                calc_interval=quarters[quarter],
+            )
+            now = datetime.datetime.now()
+            name = f"{compound.name}-{quarter}-Report-{EOS_STRING[eos]}-{now:%d-%m-%Y-%H-%M-%S}.csv"
+            plot_3d_data(mape)
+            write_point_into_csv(mape, log_name=name)
