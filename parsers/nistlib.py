@@ -3,6 +3,49 @@ from bs4 import BeautifulSoup
 import warnings
 
 
+def get_isobaric_data_for_id(p, tlow, thigh, tstep, id):
+    payload = {
+        "P": p,
+        "TLow": tlow,
+        "THigh": thigh,
+        "TInc": tstep,
+        "Digits": "5",
+        "ID": "C" + str(id),
+        "Action": "Load",
+        "Type": "IsoBar",
+        "TUnit": "K",
+        "PUnit": "MPa",
+        "DUnit": "mol%2Fl",
+        "HUnit": "kJ%2Fmol",
+        "WUnit": "m%2Fs",
+        "VisUnit": "uPa*s",
+        "STUnit": "N%2Fm",
+        "RefState": "DEF",
+    }
+    r = requests.get("https://webbook.nist.gov/cgi/fluid.cgi", params=payload)
+    soup = BeautifulSoup(r.content, "html.parser")
+    table = soup.find("table")
+    if table is None:
+        warnings.warn("Error while parsing: possibly range error")
+        return None
+    tr = table.find_all("tr")
+    if len(tr) == 0:
+        return None
+    title_row = []
+    result = {}
+    for th in tr[0].find_all("th"):
+        title = th.text.split("(")[0].strip()
+        title_row.append(title)
+        result[title] = []
+    for tr_current in tr[1:]:
+        counter = 0
+        for td in tr_current.find_all("td"):
+            value = float(td.text) if not td.text.isalpha() else td.text
+            result[title_row[counter]].append(value)
+            counter += 1
+    return result
+
+
 def get_isothermal_data_for_ID(T, PLow, PHigh, PInc, ID):
     payload = {
         "T": T,
@@ -10,7 +53,7 @@ def get_isothermal_data_for_ID(T, PLow, PHigh, PInc, ID):
         "PHigh": PHigh,
         "PInc": PInc,
         "Digits": 5,
-        "ID": 'C'+str(ID),
+        "ID": "C" + str(ID),
         "Action": "Load",
         "Type": "IsoTherm",
         "TUnit": "K",
@@ -34,7 +77,7 @@ def get_isothermal_data_for_ID(T, PLow, PHigh, PInc, ID):
     title_row = []
     result = {}
     for th in tr[0].find_all("th"):
-        title=th.text.split('(')[0].strip()
+        title = th.text.split("(")[0].strip()
         title_row.append(title)
         result[title] = []
     for tr_current in tr[1:]:
@@ -71,11 +114,11 @@ def get_critical_values_for_ID(ID):
 
     payload = {
         "T": result["Tc"],
-        "PLow": result["Pc"] ,
-        "PHigh": result["Pc"] ,
+        "PLow": result["Pc"],
+        "PHigh": result["Pc"],
         "PInc": 1,
         "Digits": 5,
-        "ID": 'C'+str(ID),
+        "ID": "C" + str(ID),
         "Action": "Load",
         "Type": "IsoTherm",
         "TUnit": "K",
@@ -89,7 +132,9 @@ def get_critical_values_for_ID(ID):
     }
     r = requests.get("https://webbook.nist.gov/cgi/fluid.cgi", params=payload)
     soup = BeautifulSoup(r.content, "html.parser")
-    final_properties = soup.find("table", attrs={"aria-labelledby": "AdditionalFluidProperties"})
+    final_properties = soup.find(
+        "table", attrs={"aria-labelledby": "AdditionalFluidProperties"}
+    )
     for row in final_properties.find_all("tr"):
         if row.find("th").text.strip() == "Critical temperature (Tc)":
             result["Tc"] = float(row.find("td").text.strip().split()[0])
@@ -103,7 +148,8 @@ def get_critical_values_for_ID(ID):
 
 if __name__ == "__main__":
     ids_to_fill = [7732185, 630080, 124389, 7727379, 7446095, 74828]
-    get_isothermal_data_for_ID(140, 1, 6, 1, ids_to_fill[1])
+    points = get_isobaric_data_for_id(75, 275, 300, 5, ids_to_fill[0])
+    print(points)
     # print(get_critical_values_for_ID(ids_to_fill[0]))
     # for i in ids_to_fill:
     # print(f"results for {i}: {get_critical_values_for_ID(i)}")
