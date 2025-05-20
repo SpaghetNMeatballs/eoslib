@@ -1,9 +1,10 @@
 import csv
+import pandas as pd
 import datetime
 from enum import Enum
 import matplotlib.pyplot as plt
 from fluids.constants import point
-from numpy import linspace, array
+import numpy as np
 from prettytable import PrettyTable
 from thermo.eos import GCEOS, PR, RK, SRK, VDW
 
@@ -52,7 +53,7 @@ def plot_isothermal_for_casid(
         rho_exp = point.properties[prop]
         are.append(abs(rho_calc - rho_exp) / rho_exp)
     print(f"MAPE for T = {t}: {100*sum(are) / len(are):.2f}%")
-    for p in linspace(plow, phigh, calc_points):
+    for p in np.linspace(plow, phigh, calc_points):
         preos = equation_type(Tc=Tc, Pc=Pc * 1e6, omega=omega, T=t, P=p * 1e6)
         preos.solve()
         to_plot_calc.append(
@@ -86,7 +87,7 @@ def generate_deviation_points(
     tlow, thigh, tstep = t_interval
     plow, phigh, pstep = p_interval
     result = {}
-    for t in linspace(tlow, thigh, point_amount):
+    for t in np.linspace(tlow, thigh, point_amount):
         current_t = t / compound.Tcr
         result[current_t] = {}
         points = add_isothermal_points(
@@ -113,7 +114,7 @@ def collect_isothermal_deviations(compound, point_amount, t_interval, p_interval
     tlow, thigh, tstep = t_interval
     plow, phigh, pstep = p_interval
     result = []
-    for t in linspace(tlow, thigh, point_amount):
+    for t in np.linspace(tlow, thigh, point_amount):
         p_row = []
         points = add_isothermal_points(
             t=t, plow=plow, phigh=phigh, pstep=pstep, casid=compound.CasID
@@ -138,7 +139,7 @@ def collect_isobaric_deviations(compound, point_amount, t_interval, p_interval, 
     tlow, thigh, tstep = t_interval
     plow, phigh, pstep = p_interval
     result = []
-    for p in linspace(plow, phigh, point_amount):
+    for p in np.linspace(plow, phigh, point_amount):
         t_row = []
         points = add_isobaric_points(
             p=p, tlow=tlow, thigh=thigh, tstep=tstep, casid=compound.CasID
@@ -190,19 +191,53 @@ def process_mape(mape, mode: bool = True, prop: str = "T"):
         print(f"{row[0]:.2f}|{row_mape:.2f}%".replace(".", ","))
 
 
-def plot_3d_data(points: dict):
-    ax = plt.figure().add_subplot(projection="3d")
-    X = list(points.keys())
-    Y = list(points[X[0]].keys())
-    Z = []
-    for i in X:
-        Z.append([])
-        for j in list(points[i].keys()):
-            Z[-1].append(points[i][j])
-        Z[-1] = array(Z[-1])
-    X, Y, Z = array(X), array(Y), array(Z)
-    ax.plot_surface(X, Y, Z)
-    plt.show()
+def plot_3d_data(points: dict, graph_name=""):
+    T_list = []
+    P_list = []
+    Z_list = []
+
+    for T, pressures in points.items():
+        for P, deviation in pressures.items():
+            T_list.append(T)
+            P_list.append(P)
+            Z_list.append(deviation)
+
+    # Преобразуем в numpy массивы
+    T_array = np.array(T_list)
+    P_array = np.array(P_list)
+    Z_array = np.array(Z_list)
+
+    # Создаем уникальные значения для сетки
+    T_unique = np.array(list(points.keys()))
+    P_unique = np.array(list(points[T_unique[0]].keys()))
+
+    T_grid, P_grid = np.meshgrid(T_unique, P_unique)
+
+    # Создаем матрицу отклонений
+    Z_grid = np.empty_like(T_grid, dtype=float)
+
+    for i in range(P_grid.shape[0]):
+        for j in range(T_grid.shape[1]):
+            T_val = T_grid[i, j]
+            P_val = P_grid[i, j]
+            Z_grid[i, j] = points.get(T_val, {}).get(P_val, np.nan)
+
+    # Строим график
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    surf = ax.plot_surface(T_grid, P_grid, Z_grid, cmap='viridis')
+
+    ax.set_xlabel("Температура")
+    ax.set_ylabel("Давление")
+    ax.set_zlabel("Отклонение")
+    ax.set_zlim(0, 5)
+
+    plt.title("Отклонения расчёта плотности углекислого газа в (T, P)")
+    plt.colorbar(surf)
+    if graph_name == "":
+        now = datetime.datetime.now()
+        graph_name = f"unknown-Graph-{now:%d-%m-%Y-%H-%M-%S}.png"
+    plt.savefig(graph_name, dpi=300, bbox_inches='tight')
 
 
 def write_point_into_csv(points: dict, log_name: str = "") -> bool:
@@ -216,7 +251,8 @@ def write_point_into_csv(points: dict, log_name: str = "") -> bool:
         spamwriter.writerow(top_row)
         for key in keys:
             spamwriter.writerow(
-                [round(key, 2)] + [str(round(points[key][i], 2))+"%" for i in points[key]]
+                [round(key, 2)]
+                + [str(round(points[key][i], 2)) + "%" for i in points[key]]
             )
     return True
 
@@ -237,6 +273,7 @@ if __name__ == "__main__":
                 calc_interval=quarters[quarter],
             )
             now = datetime.datetime.now()
-            name = f"{compound.name}-{quarter}-Report-{EOS_STRING[eos]}-{now:%d-%m-%Y-%H-%M-%S}.csv"
-            plot_3d_data(mape)
-            write_point_into_csv(mape, log_name=name)
+            log_name = f"{compound.name}-{quarter}-Report-{EOS_STRING[eos]}-{now:%d-%m-%Y-%H-%M-%S}.csv"
+            graph_name = f"{compound.name}-{quarter}-Graph-{EOS_STRING[eos]}-{now:%d-%m-%Y-%H-%M-%S}.png"
+            plot_3d_data(mape, graph_name=graph_name)
+            write_point_into_csv(mape, log_name=log_name)
