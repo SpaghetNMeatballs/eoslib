@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 from enum import Enum
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 from fluids.constants import point
 import numpy as np
 from prettytable import PrettyTable
@@ -183,15 +184,7 @@ def calculate_deviation_for_casid(
     )
 
 
-# mode = False - compress rows, True - invert then compress rows
-def process_mape(mape, mode: bool = True, prop: str = "T"):
-    print(f"{prop}\t|MAPE")
-    for row in mape:
-        row_mape = sum([i[1] for i in row[1]]) / len(row[1]) * 100
-        print(f"{row[0]:.2f}|{row_mape:.2f}%".replace(".", ","))
-
-
-def plot_3d_data(points: dict, graph_name=""):
+def plot_data_to_surface(points: dict, graph_name: str = "", method: str = "Unknown"):
     T_list = []
     P_list = []
     Z_list = []
@@ -202,42 +195,106 @@ def plot_3d_data(points: dict, graph_name=""):
             P_list.append(P)
             Z_list.append(deviation)
 
-    # Преобразуем в numpy массивы
-    T_array = np.array(T_list)
-    P_array = np.array(P_list)
-    Z_array = np.array(Z_list)
+    # Создаем уникальные значения для сетки
+    T_unique = np.array(list(points.keys()))
+    P_unique = np.array(list(points[T_unique[0]].keys()))
+
+    T_to_idx = {t: i for i, t in enumerate(T_unique)}
+    P_to_idx = {p: i for i, p in enumerate(P_unique)}
+
+    # Создаем матрицу отклонений
+    T_grid, P_grid = np.meshgrid(T_unique, P_unique)
+    Z_grid = np.full((len(P_unique), len(T_unique)), np.nan)
+
+    T = list(points.keys())
+    P = list(points[T[0]].keys())
+    extent = [T[0], T[-1], P[0], P[-1]]
+    for T, pressures in points.items():
+        for P, deviation in pressures.items():
+            i = P_to_idx[P]
+            j = T_to_idx[T]
+            Z_grid[i, j] = deviation
+
+    '''fig, ax = plt.subplots()
+    cax = ax.imshow(
+        Z_grid,
+        origin="lower",
+        aspect="auto",
+        cmap="gray",
+        vmin=0,
+        vmax=5,
+        extent=extent,
+    )'''
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    surf = ax.plot_surface(
+        T_grid,
+        P_grid,
+        Z_grid,
+        cmap='gray')
+
+    font_params = {"fontname": "Times New Roman"}
+    ax.set_xlabel("Tr", **font_params)
+    ax.set_ylabel("Pr", **font_params)
+    ax.set_zlabel("MAPE", **font_params)
+    ax.zaxis.set_major_formatter(mtick.PercentFormatter())
+    ax.set_zlim(0, 5)
+    ax.set_box_aspect(None, zoom=0.85)
+    plt.colorbar(surf, ax=ax, location="left")
+    if graph_name == "":
+        now = datetime.datetime.now()
+        graph_name = f"unknown-Graph-{now:%d-%m-%Y-%H-%M-%S}.png"
+    plt.savefig(graph_name, dpi=300, bbox_inches="tight")
+
+
+def plot_data_to_imshow(points: dict, graph_name: str = "", method: str = "Unknown"):
+    T_list = []
+    P_list = []
+    Z_list = []
+
+    for T, pressures in points.items():
+        for P, deviation in pressures.items():
+            T_list.append(T)
+            P_list.append(P)
+            Z_list.append(deviation)
 
     # Создаем уникальные значения для сетки
     T_unique = np.array(list(points.keys()))
     P_unique = np.array(list(points[T_unique[0]].keys()))
 
-    T_grid, P_grid = np.meshgrid(T_unique, P_unique)
+    T_to_idx = {t: i for i, t in enumerate(T_unique)}
+    P_to_idx = {p: i for i, p in enumerate(P_unique)}
 
     # Создаем матрицу отклонений
-    Z_grid = np.empty_like(T_grid, dtype=float)
+    T_grid, P_grid = np.meshgrid(T_unique, P_unique)
+    Z_grid = np.full((len(P_unique), len(T_unique)), np.nan)
 
-    for i in range(P_grid.shape[0]):
-        for j in range(T_grid.shape[1]):
-            T_val = T_grid[i, j]
-            P_val = P_grid[i, j]
-            Z_grid[i, j] = points.get(T_val, {}).get(P_val, np.nan)
+    T = list(points.keys())
+    P = list(points[T[0]].keys())
+    extent = [T[0], T[-1], P[0], P[-1]]
+    for T, pressures in points.items():
+        for P, deviation in pressures.items():
+            i = P_to_idx[P]
+            j = T_to_idx[T]
+            Z_grid[i, j] = deviation
 
-    # Строим график
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    surf = ax.plot_surface(T_grid, P_grid, Z_grid, cmap='viridis')
+    fig, ax = plt.subplots()
+    cax = ax.imshow(
+        Z_grid,
+        origin="lower",
+        aspect="auto",
+        extent=extent,
+    )
 
-    ax.set_xlabel("Температура")
-    ax.set_ylabel("Давление")
-    ax.set_zlabel("Отклонение")
-    ax.set_zlim(0, 5)
-
-    plt.title("Отклонения расчёта плотности углекислого газа в (T, P)")
-    plt.colorbar(surf)
+    font_params = {"fontname": "Times New Roman"}
+    ax.set_xlabel("Tr", **font_params)
+    ax.set_ylabel("Pr", **font_params)
+    cbar = plt.colorbar(cax, ax=ax, location="right")
+    cbar.set_label("MAPE, %")
     if graph_name == "":
         now = datetime.datetime.now()
         graph_name = f"unknown-Graph-{now:%d-%m-%Y-%H-%M-%S}.png"
-    plt.savefig(graph_name, dpi=300, bbox_inches='tight')
+    plt.savefig(graph_name, dpi=300, bbox_inches="tight")
 
 
 def write_point_into_csv(points: dict, log_name: str = "") -> bool:
@@ -257,14 +314,33 @@ def write_point_into_csv(points: dict, log_name: str = "") -> bool:
     return True
 
 
+def print_average_mape(
+    mape: dict,
+    compound: str = "Unknown compound",
+    eos: str = "Unknown method",
+    interval: str = "Unknown"
+):
+    result = 0
+    count = 0
+    for T in mape:
+        row = mape[T]
+        for P in row:
+            result += row[P]
+            count += 1
+    result /= count
+    print(f"Average MAPE for {compound} on interval {interval} using {eos} = {result:.2f}%")
+
+
 if __name__ == "__main__":
     # plot_isothermal_for_casid(124389, 275, 60, 80, 1)
     # True - isothermic, False - isobaric
     # (t, p)
-    quarters = {"l": ((1, 1.25), (1, 1.25)), "g": ((1, 1.25), (0.75, 1))}
-    casid = 124389
-    compound = get_compound_by_casid(casid)
-    for quarter in quarters:
+    quarters = {"l": ((1.1, 1.25), (1.1, 1.25)), "g": ((1.1, 1.25), (0.75, 0.9))}
+    casids = [124389, 74828, 7727379, 7732185, 630080, 7446095]
+    for casid in casids:
+        compound = add_by_id(casid)
+
+        quarter = "g"
         for eos in EOS_STRING:
             mape = calculate_deviation_for_casid(
                 casid=casid,
@@ -275,5 +351,9 @@ if __name__ == "__main__":
             now = datetime.datetime.now()
             log_name = f"{compound.name}-{quarter}-Report-{EOS_STRING[eos]}-{now:%d-%m-%Y-%H-%M-%S}.csv"
             graph_name = f"{compound.name}-{quarter}-Graph-{EOS_STRING[eos]}-{now:%d-%m-%Y-%H-%M-%S}.png"
-            plot_3d_data(mape, graph_name=graph_name)
+            print_average_mape(mape=mape,
+                               compound=compound.name,
+                               eos=EOS_STRING[eos],
+                               interval=quarter)
+            plot_data_to_imshow(mape, graph_name=graph_name, method=EOS_STRING[eos])
             write_point_into_csv(mape, log_name=log_name)
